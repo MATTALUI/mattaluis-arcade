@@ -1,10 +1,156 @@
 (() => {
+  const CONFIG = {
+    LEVEL_INTENSITY_MODIFIER: 3, //  increase number of asteroids and baddies every n level,
+    ASTEROIDS_PER_DIFFICULTY: 5, // number of asteroids that starts with each difficulty,
+    HEALTH_TIER_COLORS: [[0, 232, 0], [0, 186, 0], [0, 116, 0]],
+    INVINCIBILITY_HEALTH_COLOR: [247, 219, 167],
+    HEIGHT: 600,
+    WIDTH: 900,
+  };
+
   class FlyingSpaceObject {
     constructor(phaser){
       this.phaser = phaser;
+      // this.sprite = sprite;
       this.sprite = null;
       this.speed = 0;
       this.maxSpeed = 10;
+      this.rotationSpeed = 0;
+      // this.rotationAngle = 0;
+      this.life = 1;
+      this.damageValue = 0;
+    }
+
+    addSprite(spriteName) {
+      // this.sprite =
+    }
+
+    isAlive() {
+      return this.life > 0;
+    }
+
+    update() {
+      this.sprite.rotation += this.rotationSpeed;
+      this.wrapSprite();
+    }
+
+    wrapSprite() {
+      if (this.sprite.x < 0) {
+        this.sprite.x = CONFIG.WIDTH;
+      } else if (this.sprite.x > CONFIG.WIDTH) {
+        this.sprite.x = 0;
+      }
+
+      if (this.sprite.y < 0) {
+        this.sprite.y = CONFIG.HEIGHT;
+      } else if (this.sprite.y > CONFIG.HEIGHT) {
+        this.sprite.y = 0;
+      }
+    }
+
+    startAtEdge() {
+      const edge = Phaser.Math.Between(0,4);
+
+      switch(edge) {
+        case 0: // TOP
+          this.sprite.x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
+          this.sprite.y = CONFIG.HEIGHT;
+          break;
+        case 1: // Right
+          this.sprite.x = CONFIG.WIDTH;
+          this.sprite.y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
+          break;
+        case 2: // Bottom
+          this.sprite.x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
+          this.sprite.y = 0;
+          break;
+        case 3: // Left
+          this.sprite.x = 0;
+          this.sprite.y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
+          break;
+      }
+    }
+  }
+
+  class Ship extends FlyingSpaceObject {
+    constructor(phaser){
+      super(phaser);
+      this.sprite = phaser.physics.add.sprite(CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, 'ship').setScale(0.13);
+      this.speed = 0.1;
+      this.maxLife = 300;
+      this.life = 100;
+      this.maxSpeed = 5;
+      this.invincibility = 0;
+      this.machineGun = 0;
+      this.good = true;
+      this.damageValue = 10;
+      this.rotationSpeed = 0.08;
+      this.id = null; // ID is for multiplayer ability
+    }
+
+    update() {
+      this.controlShip();
+      this.sprite.x += (Math.sin(this.sprite.rotation) * this.speed);
+      this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
+      this.wrapSprite();
+    }
+
+    turnLeft() {
+      // NOTE: Sprite rotations are in radians
+      this.sprite.rotation -= this.rotationSpeed;
+    }
+
+    turnRight() {
+      // NOTE: Sprite rotations are in radians
+      this.sprite.rotation += this.rotationSpeed;
+    }
+
+    thrust() {
+      this.speed += 0.3;
+      if (this.speed > this.maxSpeed) { this.speed = this.maxSpeed; }
+    }
+
+    reverse() {
+      this.speed -= 0.2;
+      if (this.speed < -1) { this.speed = -1; }
+    }
+
+    controlShip() {
+      if (this.phaser.cursors.left.isDown){
+        this.turnLeft();
+      }else if (this.phaser.cursors.right.isDown){
+        this.turnRight();
+      }
+
+      if (this.phaser.cursors.up.isDown){
+        this.thrust();
+      }else if (this.phaser.cursors.down.isDown) {
+        this.reverse();
+      }
+    }
+  }
+
+  class AsteroidLarge extends FlyingSpaceObject {
+    constructor(phaser) {
+      super(phaser);
+
+      const rot = Math.random() / 30;
+      const cap = Math.random() * 2;
+      const vecX = Phaser.Math.FloatBetween(-cap, cap);
+      const vecY = Phaser.Math.FloatBetween(-cap, cap);
+      const sprite = phaser.physics.add.sprite(0, 0, 'asteroid1').setScale(0.69);
+
+      this.rotationSpeed = Math.floor(Math.random() * 2) ? rot : -rot;
+      this.velocity = new Phaser.Math.Vector2(vecX, vecY);
+      this.sprite = sprite;
+
+      this.startAtEdge();
+    }
+
+    update() {
+      super.update();
+      this.sprite.x += this.velocity.x;
+      this.sprite.y += this.velocity.y;
     }
   }
 
@@ -40,65 +186,64 @@
     },
     create: function (){
       this.cursors = this.input.keyboard.createCursorKeys();
+      this.asteroids = [];
+      this.baddies = [];
+      this.bullets = [];
+      this.powerUps = [];
+      this.level = 1;
+      this.score = 0;
+      this.mothership = null;
+      this.paused = false;
+      this.ship = new Ship(this); //this.physics.add.sprite(CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, 'ship').setScale(0.13);
 
-      this.ship = this.physics.add.sprite(450, 300, 'ship').setScale(0.13);
-      this.ship.speed = 0;
-      this.ship.maxSpeed = 10;
+      this._generateAsteroids();
 
-      this.station = this.physics.add.sprite(Phaser.Math.Between(0,900), Phaser.Math.Between(0,600), 'battlestation').setScale(0.3);
-      this.station.rotation += Phaser.Math.Between(-3,3);
 
-      this.physics.add.collider(this.ship, this.station);
-      this.physics.add.overlap(this.ship, this.station, (player, heart)=>{
-        console.log('crash!');
-      }, null, this);
+
+
+      //
+      // this.station = this.physics.add.sprite(Phaser.Math.Between(0,900), Phaser.Math.Between(0,600), 'battlestation').setScale(0.3);
+      // this.station.rotation += Phaser.Math.Between(-3,3);
+      //
+      // this.physics.add.collider(this.ship, this.station);
+      // this.physics.add.overlap(this.ship, this.station, (player, heart)=>{
+      //   console.log('crash!');
+      // }, null, this);
     },
     update: function(){
-      this.controlShip();
-      this.controlStation();
+      // Update Entities
+      this.ship.update();
+      this.asteroids.forEach(a => a.update());
+
+      // Clean up dead things
+      this.asteroids = this.asteroids.filter(a => a.isAlive());
     },
-    controlStation: function(){
-      const stationSpeed = 0.6;
-      this.station.x += (Math.sin(this.station.rotation) * stationSpeed);
-      this.station.y += (-Math.cos(this.station.rotation) * stationSpeed);
-      this.wrapObject(this.station);
-    },
-    controlShip: function(){
-      if (this.cursors.left.isDown){
-        this.ship.rotation -= 0.1;
-      }else if (this.cursors.right.isDown){
-        this.ship.rotation += 0.1;
-      }
-      if (this.cursors.up.isDown){
-        this.ship.speed += 0.3;
-        if (this.ship.speed > this.ship.maxSpeed) { this.ship.speed = this.ship.maxSpeed; }
-      }else if (this.cursors.down.isDown) {
-        this.ship.speed -= 0.1;
-        if (this.ship.speed < -1) { this.ship.speed = -1; }
-      }
-      this.ship.x += (Math.sin(this.ship.rotation) * this.ship.speed);
-      this.ship.y += (-Math.cos(this.ship.rotation) * this.ship.speed);
-      this.wrapObject(this.ship);
-    },
-    wrapObject: function(object){
-      if(object.x < 0) {
-        object.x = 900;
-      }else if (object.x > 900) {
-        object.x = 0;
-      }
-      if(object.y < 0) {
-        object.y = 600;
-      }else if (object.y > 600) {
-        object.y = 0;
+
+    _generateAsteroids: function(){
+      const difficulty = Math.ceil(this.level / CONFIG.LEVEL_INTENSITY_MODIFIER);
+      const asteroidCount = difficulty * CONFIG.ASTEROIDS_PER_DIFFICULTY;
+
+      for (let i = 0; i < asteroidCount ; i++){
+        const asteroid = new AsteroidLarge(this);
+
+        this.asteroids.push(asteroid);
       }
     },
+
+
+    // controlStation: function(){
+    //   const stationSpeed = 0.6;
+    //   this.station.x += (Math.sin(this.station.rotation) * stationSpeed);
+    //   this.station.y += (-Math.cos(this.station.rotation) * stationSpeed);
+    //   this.wrapObject(this.station);
+    // },
   });
 
   window.onload = function(){
     const config = {
       type: Phaser.AUTO,
-      width: 900,
-      height: 600,
+      width: CONFIG.WIDTH,
+      height: CONFIG.HEIGHT,
       scene: [ SpaceFighter.Boot, SpaceFighter.Play ],
       autoCenter: true,
       parent: 'gameContainer',

@@ -36,9 +36,12 @@
         <div class="card d-flex flex-column h-100">
           <div class="m-1 p-1 border">
             {{#if hasImage}}
-              <img src="https://picsum.photos/200" class="card-img-top" alt="...">
+              <!-- <img src="{{image}}" class="card-img-top" alt="..."> -->
+              <div class="bg-dark w-100 rounded-top d-flex justify-content-center align-items-center overflow-hidden" style="height:12.5rem;">
+                <img src="{{image}}" class="w-100" alt="">
+              </div>
             {{else}}
-              <div class="bg-dark w-100 rounded-top d-flex justify-content-center align-items-center" style="height:200px;">
+              <div class="bg-dark w-100 rounded-top d-flex justify-content-center align-items-center overflow-hidden" style="height:12.5rem;">
                 <img src="/logo.png" class="w-100" alt="">
               </div>
             {{/if}}

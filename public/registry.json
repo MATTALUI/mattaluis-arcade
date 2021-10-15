@@ -9,8 +9,9 @@
   "test": {
     "name": "A Test Game",
     "author": "MATTALUI",
-    "description": "This is a \"game\" to test the game registry system, as well as the new Phaser 3 framework overall.",
+    "description": "This is a \"game\" to test the game registry system, as well as the new Phaser 3 framework overall. It is not fun. I promise.",
     "date": "January 1, 2021",
-    "hasImage": false
+    "hasImage": true,
+    "image": "/thumbnails/test.png"
   }
 }
