@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Mattalui's Arcade | Home</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootswatch/4.5.2/sketchy/bootstrap.min.css" integrity="sha384-RxqHG2ilm4r6aFRpGmBbGTjsqwfqHOKy1ArsMhHusnRO47jcGqpIQqlQK/kmGy9R" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.6/handlebars.min.js" integrity="sha512-zT3zHcFYbQwjHdKjCu6OMmETx8fJA9S7E6W7kBeFxultf75OPTYUJigEKX58qgyQMi1m1EgenfjMXlRZG8BXaw==" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/logo.png">
+    <script src="/home.js" defer></script>
+  </head>
+  <body>
+    <nav class="navbar navbar-dark bg-dark">
+      <a class="navbar-brand" href="/">
+        <img src="/logo.png" width="30" height="30" class="d-inline-block align-top" alt="">
+        Mattalui's Arcade
+      </a>
+    </nav>
+    <main>
+      <div class="container pt-3">
+        <h1>Welcome to Mattalui's Arcade</h1>
+        <p>With a wide variety of games availabe, Mattalui's Arcade has something for everyone who loves gaming.</p>
+        <div id="games" class="border-top pt-3 row">
+          <div class="d-flex justify-content-center col-sm-12 flex-column align-items-center">
+            <span>LOADING</span>
+            <div class="spinner-grow" role="status"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script id="game-card" type="text/x-handlebars-template">
+      <div class="col-sm-4 mb-3">
+        <div class="card d-flex flex-column h-100">
+          <div class="m-1 p-1 border">
+            {{#if hasImage}}
+              <img src="https://picsum.photos/200" class="card-img-top" alt="...">
+            {{else}}
+              <div class="bg-dark w-100 rounded-top d-flex justify-content-center align-items-center" style="height:200px;">
+                <img src="/logo.png" class="w-100" alt="">
+              </div>
+            {{/if}}
+          </div
+          <div class="card-body">
+            <p class="text-center h3">{{name}}</p>
+            <div class="d-flex justify-content-between text-muted px-5">
+              <span>BY: {{author}}</span>
+              <span>{{date}}</span>
+            </div>
+            <p class="text-center flex-grow-1">{{description}}</p>
+            <a href="/play/{{key}}/" class="btn btn-primary btn-lg">Play</a>
+          </div>
+        </div>
+      </div>
+    </script>
+  </body>
+</html>

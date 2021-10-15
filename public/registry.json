@@ -1,0 +1,16 @@
+{
+  "space-fighter": {
+    "name": "Space Fighter",
+    "author": "MATTALUI",
+    "description": "Join the space force in the fight against aliens in this action-packed space shooter.",
+    "date": "TBD",
+    "hasImage": false
+  },
+  "test": {
+    "name": "A Test Game",
+    "author": "MATTALUI",
+    "description": "This is a \"game\" to test the game registry system, as well as the new Phaser 3 framework overall.",
+    "date": "January 1, 2021",
+    "hasImage": false
+  }
+}
