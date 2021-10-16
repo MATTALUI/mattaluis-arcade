@@ -72,6 +72,50 @@
     }
   }
 
+  class Bullet extends FlyingSpaceObject {
+    constructor(phaser, ship = null) {
+      super(phaser);
+      this.sprite = phaser.physics.add.sprite(100, 100, 'bullet');
+      this.velocity = new Phaser.Math.Vector2(0, 0);
+      this.safe = true;
+      this.life = 60;
+      this.damageValue = 1;
+      if (ship) {
+        this.fireFromShip(ship);
+      }
+    }
+
+    fireFromShip(ship) {
+      const bulletSpeed = 10;
+      const angle = ship.sprite.rotation - (Math.PI / 2); // Might need some math here...
+      this.safe = ship.good;
+
+      if (!this.safe) {
+        this.sprite.destroy();
+        this.sprite = phaser.physics.add.sprite(100, 100, 'badBullet').setScale(0.06);
+      }
+
+      this.sprite.x = ship.sprite.x;
+      this.sprite.y = ship.sprite.y;
+      this.sprite.rotation = ship.sprite.rotation;
+      this.damageValue = ship.damageValue;
+
+      this.velocity.x = Math.cos(angle) * (ship.speed + bulletSpeed);
+      this.velocity.y = Math.sin(angle) * (ship.speed + bulletSpeed);
+    }
+
+    update() {
+      this.sprite.x += this.velocity.x;
+      this.sprite.y += this.velocity.y;
+      this.life -= 1;
+      super.update();
+
+      if(!this.isAlive()) {
+        this.sprite.destroy();
+      }
+    }
+  }
+
   class Ship extends FlyingSpaceObject {
     constructor(phaser){
       super(phaser);
@@ -171,6 +215,11 @@
       Phaser.Scene.call(this, { key: 'Boot' });
     },
     preload: function (){
+      this.load.image('ship', '/assets/space-fighter/images/ship.png');
+
+      this.load.image('bullet', '/assets/space-fighter/images/bullet.png');
+      this.load.image('badBullet', '/assets/space-fighter/images/badBullet.png');
+
       this.load.image('asteroid1', '/assets/space-fighter/images/asteroid1.png');
       this.load.image('asteroid2', '/assets/space-fighter/images/asteroid2.png');
       this.load.image('asteroid3', '/assets/space-fighter/images/asteroid3.png');
@@ -178,10 +227,11 @@
       this.load.image('baddy1', '/assets/space-fighter/images/baddy1.png');
       this.load.image('baddy2', '/assets/space-fighter/images/baddy2.png');
       this.load.image('baddy3', '/assets/space-fighter/images/baddy3.png');
-
       this.load.image('battlestation', '/assets/space-fighter/images/battlestation.png');
 
-      this.load.image('ship', '/assets/space-fighter/images/ship.png');
+      this.load.image('puGun', '/assets/space-fighter/images/pu_gun.png');
+      this.load.image('puHealth', '/assets/space-fighter/images/pu_health.png');
+      this.load.image('puShield', '/assets/space-fighter/images/pu_shield.png');
     },
     create: function (){
       this.scene.start('Play');
@@ -219,14 +269,19 @@
       if (Phaser.Input.Keyboard.JustDown(this.pauseButton)) {
         this.paused = !this.paused;
       }
+      if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
+        this._fireBullet();
+      }
       if (this.paused) { return; }
 
       // Update Entities
       this.ship.update();
+      this.bullets.forEach(b => b.update());
       this.asteroids.forEach(a => a.update());
 
       // Clean up dead things
       this.asteroids = this.asteroids.filter(a => a.isAlive());
+      this.bullets = this.bullets.filter(b => b.isAlive());
 
       // Manage End of Level
       if (!this.asteroids.length && !this.baddies.length && !this.mothership){
@@ -236,7 +291,7 @@
       }
     },
 
-    _generateAsteroids: function(){
+    _generateAsteroids: function (){
       const difficulty = Math.ceil(this.level / CONFIG.LEVEL_INTENSITY_MODIFIER);
       const asteroidCount = difficulty * CONFIG.ASTEROIDS_PER_DIFFICULTY;
 
@@ -252,9 +307,14 @@
       }
     },
 
-    _generateBaddies() {
+    _generateBaddies: function () {
 
-    }
+    },
+
+    _fireBullet: function () {
+      const bullet = new Bullet(this, this.ship);
+      this.bullets.push(bullet);
+    },
 
 
     // controlStation: function(){
