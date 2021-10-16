@@ -90,9 +90,13 @@
 
     update() {
       this.controlShip();
+      this.advance();
+      this.wrapSprite();
+    }
+
+    advance() {
       this.sprite.x += (Math.sin(this.sprite.rotation) * this.speed);
       this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
-      this.wrapSprite();
     }
 
     turnLeft() {
@@ -128,6 +132,10 @@
         this.reverse();
       }
     }
+
+    canSeePoint(x, y) {
+
+    }
   }
 
   class AsteroidLarge extends FlyingSpaceObject {
@@ -138,7 +146,8 @@
       const cap = Math.random() * 2;
       const vecX = Phaser.Math.FloatBetween(-cap, cap);
       const vecY = Phaser.Math.FloatBetween(-cap, cap);
-      const sprite = phaser.physics.add.sprite(0, 0, 'asteroid1').setScale(0.69);
+      const asteroidNumber = Phaser.Math.Between(1, 3);
+      const sprite = phaser.physics.add.sprite(0, 0, `asteroid${asteroidNumber}`).setScale(0.69);
 
       this.rotationSpeed = Math.floor(Math.random() * 2) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
@@ -194,9 +203,9 @@
       this.score = 0;
       this.mothership = null;
       this.paused = false;
-      this.ship = new Ship(this); //this.physics.add.sprite(CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, 'ship').setScale(0.13);
+      this.ship = new Ship(this);
 
-      this._generateAsteroids();
+      this.pauseButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
 
 
@@ -204,19 +213,27 @@
       //
       // this.station = this.physics.add.sprite(Phaser.Math.Between(0,900), Phaser.Math.Between(0,600), 'battlestation').setScale(0.3);
       // this.station.rotation += Phaser.Math.Between(-3,3);
-      //
-      // this.physics.add.collider(this.ship, this.station);
-      // this.physics.add.overlap(this.ship, this.station, (player, heart)=>{
-      //   console.log('crash!');
-      // }, null, this);
+
     },
     update: function(){
+      if (Phaser.Input.Keyboard.JustDown(this.pauseButton)) {
+        this.paused = !this.paused;
+      }
+      if (this.paused) { return; }
+
       // Update Entities
       this.ship.update();
       this.asteroids.forEach(a => a.update());
 
       // Clean up dead things
       this.asteroids = this.asteroids.filter(a => a.isAlive());
+
+      // Manage End of Level
+      if (!this.asteroids.length && !this.baddies.length && !this.mothership){
+        this.level += 1
+        this._generateAsteroids();
+        this._generateBaddies()
+      }
     },
 
     _generateAsteroids: function(){
@@ -225,10 +242,19 @@
 
       for (let i = 0; i < asteroidCount ; i++){
         const asteroid = new AsteroidLarge(this);
+        const collider = this.physics.add.collider(this.ship.sprite, asteroid.sprite, () => {
+          asteroid.life = 0;
+          asteroid.sprite.destroy();
+          collider.destroy();
+        });
 
         this.asteroids.push(asteroid);
       }
     },
+
+    _generateBaddies() {
+
+    }
 
 
     // controlStation: function(){
