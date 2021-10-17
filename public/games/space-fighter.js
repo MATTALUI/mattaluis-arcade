@@ -196,6 +196,7 @@
       this.rotationSpeed = Math.floor(Math.random() * 2) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.sprite = sprite;
+      this.life = 30;
 
       this.startAtEdge();
     }
@@ -204,6 +205,18 @@
       super.update();
       this.sprite.x += this.velocity.x;
       this.sprite.y += this.velocity.y;
+    }
+
+    damage(amount) {
+      this.phaser.sounds.hit.play();
+      this.life -= amount;
+    }
+
+    explode() {
+      this.sprite.destroy();
+      this.phaser.sounds.explode.play();
+
+      return [];
     }
   }
 
@@ -232,6 +245,10 @@
       this.load.image('puGun', '/assets/space-fighter/images/pu_gun.png');
       this.load.image('puHealth', '/assets/space-fighter/images/pu_health.png');
       this.load.image('puShield', '/assets/space-fighter/images/pu_shield.png');
+
+
+      this.load.audio('hit', ['/assets/space-fighter/sound/hit.wav']);
+      this.load.audio('explode', ['/assets/space-fighter/sound/explode.wav']);
     },
     create: function (){
       this.scene.start('Play');
@@ -248,6 +265,7 @@
       this.asteroids = [];
       this.baddies = [];
       this.bullets = [];
+      this.bulletGroup = this.physics.add.group();
       this.powerUps = [];
       this.level = 1;
       this.score = 0;
@@ -256,6 +274,11 @@
       this.ship = new Ship(this);
 
       this.pauseButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+      this.sounds = {
+        hit: this.sound.add('hit'),
+        explode: this.sound.add('explode'),
+      };
 
 
 
@@ -285,9 +308,9 @@
 
       // Manage End of Level
       if (!this.asteroids.length && !this.baddies.length && !this.mothership){
-        this.level += 1
+        this.level += 1;
         this._generateAsteroids();
-        this._generateBaddies()
+        this._generateBaddies();
       }
     },
 
@@ -297,10 +320,19 @@
 
       for (let i = 0; i < asteroidCount ; i++){
         const asteroid = new AsteroidLarge(this);
-        const collider = this.physics.add.collider(this.ship.sprite, asteroid.sprite, () => {
-          asteroid.life = 0;
-          asteroid.sprite.destroy();
-          collider.destroy();
+        const shipCollider = this.physics.add.collider(this.ship.sprite, asteroid.sprite, () => {
+          // asteroid.life = 0;
+          // asteroid.sprite.destroy();
+          shipCollider.destroy();
+        });
+        const bulletCollider = this.physics.add.collider(this.bulletGroup, asteroid.sprite, (aSprite, bSprite) => {
+          const bullet = this.bullets.find(b => b.sprite === bSprite);
+          bullet.life = 0;
+          asteroid.damage(10);
+          if (!asteroid.isAlive()) {
+            this.asteroids.concat(asteroid.explode());
+            bulletCollider.destroy();
+          }
         });
 
         this.asteroids.push(asteroid);
@@ -313,6 +345,7 @@
 
     _fireBullet: function () {
       const bullet = new Bullet(this, this.ship);
+      this.bulletGroup.add(bullet.sprite);
       this.bullets.push(bullet);
     },
 
