@@ -191,7 +191,7 @@
       const vecX = Phaser.Math.FloatBetween(-cap, cap);
       const vecY = Phaser.Math.FloatBetween(-cap, cap);
       const asteroidNumber = Phaser.Math.Between(1, 3);
-      const sprite = phaser.physics.add.sprite(0, 0, `asteroid${asteroidNumber}`).setScale(0.69);
+      const sprite = phaser.physics.add.sprite(0, 0, `asteroid${asteroidNumber}`).setScale(Phaser.Math.FloatBetween(0.79, 1));
 
       this.rotationSpeed = Math.floor(Math.random() * 2) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
@@ -213,10 +213,84 @@
     }
 
     explode() {
+      const newAsteroids = [];
+
+      const med1 = new AsteroidMedium(this.phaser);
+      med1.sprite.x = this.sprite.x;
+      med1.sprite.y = this.sprite.y;
+      newAsteroids.push(med1);
+
+      const med2 = new AsteroidMedium(this.phaser);
+      med2.sprite.x = this.sprite.x;
+      med2.sprite.y = this.sprite.y;
+      newAsteroids.push(med2);
+
+      const sm = new AsteroidSmall(this.phaser);
+      sm.sprite.x = this.sprite.x;
+      sm.sprite.y = this.sprite.y;
+      newAsteroids.push(sm);
+
       this.sprite.destroy();
       this.phaser.sounds.explode.play();
+      return newAsteroids;
+    }
+  }
 
-      return [];
+  class AsteroidMedium extends AsteroidLarge {
+    constructor(phaser) {
+      super(phaser);
+      this.sprite.setScale(Phaser.Math.FloatBetween(0.49, 0.55));
+
+      const rot = Math.random() / 20;
+      const cap = Math.random() * 4;
+      const vecX = Phaser.Math.FloatBetween(-cap, cap);
+      const vecY = Phaser.Math.FloatBetween(-cap, cap);
+
+      this.rotationSpeed = Math.floor(Math.random() * 3) ? rot : -rot;
+      this.velocity = new Phaser.Math.Vector2(vecX, vecY);
+      this.life = 20;
+    }
+
+    explode() {
+      const newAsteroids = [];
+
+      const sm1 = new AsteroidSmall(this.phaser);
+      sm1.sprite.x = this.sprite.x;
+      sm1.sprite.y = this.sprite.y;
+      newAsteroids.push(sm1);
+
+      const sm2 = new AsteroidSmall(this.phaser);
+      sm2.sprite.x = this.sprite.x;
+      sm2.sprite.y = this.sprite.y;
+      newAsteroids.push(sm2);
+
+      this.sprite.destroy();
+      this.phaser.sounds.explode.play();
+      return newAsteroids;
+    }
+  }
+
+  class AsteroidSmall extends AsteroidMedium {
+    constructor(phaser) {
+      super(phaser);
+      this.sprite.setScale(Phaser.Math.FloatBetween(0.19, 0.25));
+
+      const rot = Math.random() / 30;
+      const cap = Math.random() * 5;
+      const vecX = Phaser.Math.FloatBetween(-cap, cap);
+      const vecY = Phaser.Math.FloatBetween(-cap, cap);
+
+      this.rotationSpeed = Math.floor(Math.random() * 4) ? rot : -rot;
+      this.velocity = new Phaser.Math.Vector2(vecX, vecY);
+      this.life = 10;
+    }
+
+    explode() {
+      const newAsteroids = [];
+
+      this.sprite.destroy();
+      this.phaser.sounds.explode.play();
+      return newAsteroids;
     }
   }
 
@@ -265,7 +339,6 @@
       this.asteroids = [];
       this.baddies = [];
       this.bullets = [];
-      this.bulletGroup = this.physics.add.group();
       this.powerUps = [];
       this.level = 1;
       this.score = 0;
@@ -280,13 +353,25 @@
         explode: this.sound.add('explode'),
       };
 
+      this.bulletGroup = this.physics.add.group();
+      this.asteroidGroup = this.physics.add.group();
 
-
-
-      //
-      // this.station = this.physics.add.sprite(Phaser.Math.Between(0,900), Phaser.Math.Between(0,600), 'battlestation').setScale(0.3);
-      // this.station.rotation += Phaser.Math.Between(-3,3);
-
+      // this.physics.add.collider(this.ship.sprite, this.asteroidGroup, (shipSprite, aSprite) => {
+        // asteroid.life = 0;
+        // asteroid.sprite.destroy();
+        // shipCollider.destroy();
+      // });
+      this.physics.add.collider(this.bulletGroup, this.asteroidGroup, (bSprite, aSprite) => {
+        const bullet = this.bullets.find(b => b.sprite === bSprite);
+        const asteroid = this.asteroids.find(a => a.sprite === aSprite);
+        bullet.life = 0;
+        asteroid.damage(10);
+        if (!asteroid.isAlive()) {
+          const newAsteroids = asteroid.explode();
+          newAsteroids.forEach(a => this.asteroidGroup.add(a.sprite));
+          this.asteroids = this.asteroids.concat(newAsteroids);
+        }
+      });
     },
     update: function(){
       if (Phaser.Input.Keyboard.JustDown(this.pauseButton)) {
@@ -320,21 +405,8 @@
 
       for (let i = 0; i < asteroidCount ; i++){
         const asteroid = new AsteroidLarge(this);
-        const shipCollider = this.physics.add.collider(this.ship.sprite, asteroid.sprite, () => {
-          // asteroid.life = 0;
-          // asteroid.sprite.destroy();
-          shipCollider.destroy();
-        });
-        const bulletCollider = this.physics.add.collider(this.bulletGroup, asteroid.sprite, (aSprite, bSprite) => {
-          const bullet = this.bullets.find(b => b.sprite === bSprite);
-          bullet.life = 0;
-          asteroid.damage(10);
-          if (!asteroid.isAlive()) {
-            this.asteroids.concat(asteroid.explode());
-            bulletCollider.destroy();
-          }
-        });
 
+        this.asteroidGroup.add(asteroid.sprite);
         this.asteroids.push(asteroid);
       }
     },
