@@ -130,17 +130,27 @@
       this.damageValue = 10;
       this.rotationSpeed = 0.08;
       this.id = null; // ID is for multiplayer ability
+
+      this.phaser.sounds.shipEngine.setLoop(true);
+      this.phaser.sounds.shipEngine.play();
     }
 
     update() {
       this.controlShip();
       this.advance();
+      this.updateEngineNoise();
       this.wrapSprite();
     }
 
     advance() {
       this.sprite.x += (Math.sin(this.sprite.rotation) * this.speed);
       this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
+    }
+
+    updateEngineNoise() {
+      const currentSpeed = Math.abs(this.speed);
+      const speedPercent = (currentSpeed / this.maxSpeed);
+      this.phaser.sounds.shipEngine.setVolume(speedPercent / 3);
     }
 
     turnLeft() {
@@ -323,6 +333,8 @@
 
       this.load.audio('hit', ['/assets/space-fighter/sound/hit.wav']);
       this.load.audio('explode', ['/assets/space-fighter/sound/explode.wav']);
+      this.load.audio('shipEngine', ['/assets/space-fighter/sound/shipEngine.wav']);
+      this.load.audio('laser', ['/assets/space-fighter/sound/laser.wav']);
     },
     create: function (){
       this.scene.start('Play');
@@ -335,6 +347,12 @@
       Phaser.Scene.call(this, { key: 'Play' });
     },
     create: function (){
+      this.sounds = {
+        hit: this.sound.add('hit'),
+        explode: this.sound.add('explode'),
+        shipEngine: this.sound.add('shipEngine', { volume: 0.5 }),
+        laser: this.sound.add('laser'),
+      };
       this.cursors = this.input.keyboard.createCursorKeys();
       this.asteroids = [];
       this.baddies = [];
@@ -347,11 +365,6 @@
       this.ship = new Ship(this);
 
       this.pauseButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-
-      this.sounds = {
-        hit: this.sound.add('hit'),
-        explode: this.sound.add('explode'),
-      };
 
       this.bulletGroup = this.physics.add.group();
       this.asteroidGroup = this.physics.add.group();
@@ -419,6 +432,7 @@
       const bullet = new Bullet(this, this.ship);
       this.bulletGroup.add(bullet.sprite);
       this.bullets.push(bullet);
+      this.sounds.laser.play();
     },
 
 
