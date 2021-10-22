@@ -6,6 +6,7 @@
     INVINCIBILITY_HEALTH_COLOR: [247, 219, 167],
     HEIGHT: 600,
     WIDTH: 900,
+    HEALTHBAR_SIZE_MODIFIER: 3,
   };
 
   class FlyingSpaceObject {
@@ -131,13 +132,17 @@
       this.rotationSpeed = 0.08;
       this.id = null; // ID is for multiplayer ability
 
-      this.phaser.sounds.shipEngine.setLoop(true);
-      this.phaser.sounds.shipEngine.play();
+      // this.phaser.sounds.shipEngine.setLoop(true);
+      // this.phaser.sounds.shipEngine.play();
+      this.sprite.depth = 1000; // Draw on top
+
+      this.initHealthbar();
     }
 
     update() {
       this.controlShip();
       this.advance();
+      this.updateHealthbar();
       this.updateEngineNoise();
       this.wrapSprite();
     }
@@ -145,6 +150,13 @@
     advance() {
       this.sprite.x += (Math.sin(this.sprite.rotation) * this.speed);
       this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
+      this.invincibility = Math.max(0, this.invincibility - 1);
+
+      if (this.invincibility > 0) {
+        this.sprite.setTint(Phaser.Math.FloatBetween(0x000000,0xFFFFFF));
+      } else {
+        this.sprite.clearTint();
+      }
     }
 
     updateEngineNoise() {
@@ -187,6 +199,35 @@
       }
     }
 
+    damage(damageValue) {
+      if (this.invincibility === 0){
+        this.life -= damageValue;
+        this.invincibility += 200;
+        this.phaser.sounds.damage.play();
+        this.speed = 0;
+      }
+    }
+
+    initHealthbar() {
+      const padding = 5;
+      const height = 25;
+      const width = this.life * CONFIG.HEALTHBAR_SIZE_MODIFIER;
+      const x = padding + (width / 2);
+      const y = padding + (height / 2);
+      const mainColor = 0x00AA00;
+      const badColor = 0xAA0000;
+
+      const redbar = this.phaser.add.rectangle(x, y, width, height, badColor, 0x444444);
+      this.healthbar = this.phaser.add.rectangle(x, y, width, height, mainColor, 0x444444);
+
+      this.healthbar.depth = 2000;
+      redbar.depth = 1999;
+    }
+
+    updateHealthbar(){
+      this.healthbar.width = Math.max(0, this.life * CONFIG.HEALTHBAR_SIZE_MODIFIER);
+    }
+
     canSeePoint(x, y) {
 
     }
@@ -206,7 +247,9 @@
       this.rotationSpeed = Math.floor(Math.random() * 2) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.sprite = sprite;
+      this.sprite.depth = 500;
       this.life = 30;
+      this.damageValue = 10;
 
       this.startAtEdge();
     }
@@ -259,6 +302,7 @@
       this.rotationSpeed = Math.floor(Math.random() * 3) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.life = 20;
+      this.damageValue = 5;
     }
 
     explode() {
@@ -293,6 +337,7 @@
       this.rotationSpeed = Math.floor(Math.random() * 4) ? rot : -rot;
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.life = 10;
+      this.damageValue = 1;
     }
 
     explode() {
@@ -335,6 +380,7 @@
       this.load.audio('explode', ['/assets/space-fighter/sound/explode.wav']);
       this.load.audio('shipEngine', ['/assets/space-fighter/sound/shipEngine.wav']);
       this.load.audio('laser', ['/assets/space-fighter/sound/laser.wav']);
+      this.load.audio('damage', ['/assets/space-fighter/sound/damage.wav']);
     },
     create: function (){
       this.scene.start('Play');
@@ -352,6 +398,7 @@
         explode: this.sound.add('explode'),
         shipEngine: this.sound.add('shipEngine', { volume: 0.5 }),
         laser: this.sound.add('laser'),
+        damage: this.sound.add('damage'),
       };
       this.cursors = this.input.keyboard.createCursorKeys();
       this.asteroids = [];
@@ -369,11 +416,10 @@
       this.bulletGroup = this.physics.add.group();
       this.asteroidGroup = this.physics.add.group();
 
-      // this.physics.add.collider(this.ship.sprite, this.asteroidGroup, (shipSprite, aSprite) => {
-        // asteroid.life = 0;
-        // asteroid.sprite.destroy();
-        // shipCollider.destroy();
-      // });
+      this.physics.add.collider(this.ship.sprite, this.asteroidGroup, (shipSprite, aSprite) => {
+        const asteroid = this.asteroids.find(a => a.sprite === aSprite);
+        this.ship.damage(asteroid.damageValue);
+      });
       this.physics.add.collider(this.bulletGroup, this.asteroidGroup, (bSprite, aSprite) => {
         const bullet = this.bullets.find(b => b.sprite === bSprite);
         const asteroid = this.asteroids.find(a => a.sprite === aSprite);
@@ -385,15 +431,22 @@
           this.asteroids = this.asteroids.concat(newAsteroids);
         }
       });
+
+      this._generateStars();
     },
     update: function(){
+      if (!this.ship.isAlive()) {
+        console.log('Game over');
+      }
+
       if (Phaser.Input.Keyboard.JustDown(this.pauseButton)) {
         this.paused = !this.paused;
       }
+      if (this.paused) { return; }
+
       if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
         this._fireBullet();
       }
-      if (this.paused) { return; }
 
       // Update Entities
       this.ship.update();
@@ -435,6 +488,15 @@
       this.sounds.laser.play();
     },
 
+    _generateStars() {
+      const starNumber = Phaser.Math.Between(10, 50);
+      for (let i = 0; i < starNumber; i++) {
+        const x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
+        const y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
+        this.add.rectangle(x, y, 2, 1, 0xFFFFFF);
+      }
+    }
+
 
     // controlStation: function(){
     //   const stationSpeed = 0.6;
@@ -456,7 +518,7 @@
       physics: {
         default: 'arcade',
         arcade: {
-          debug: true,
+          // debug: true,
         },
       }
     };
