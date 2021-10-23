@@ -7,7 +7,7 @@
     INVINCIBILITY_HEALTH_COLOR: [247, 219, 167],
     HEIGHT: 600,
     WIDTH: 900,
-    HEALTHBAR_SIZE_MODIFIER: 3,
+    HEALTHBAR_SIZE_MODIFIER: 2.95,
     UI_PADDING: 5,
   };
 
@@ -155,6 +155,7 @@
       this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
       this.invincibility = Math.max(0, this.invincibility - 1);
       this.machineGun = Math.max(0, this.machineGun - 1);
+      this.life = Math.min(this.life, this.maxLife);
 
       if (this.invincibility > 0) {
         this.sprite.setTint(Phaser.Math.FloatBetween(0x000000,0xFFFFFF));
@@ -463,6 +464,54 @@
     }
   }
 
+  class Powerup {
+    constructor(phaser, spriteName){
+      const x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
+      const y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
+      this.phaser = phaser;
+      this.sprite = phaser.physics.add.sprite(x, y, spriteName).setScale(0.069);
+      this.used = false;
+    }
+
+    use() {
+      this.used = true;
+      this.sprite.destroy();
+    }
+  }
+
+  class MachineGunPowerup extends Powerup {
+    constructor(phaser) {
+      super(phaser, 'puGun');
+    }
+
+    use() {
+      super.use();
+      this.phaser.ship.machineGun += Phaser.Math.Between(150, 300);
+    }
+  }
+
+  class ShieldPowerup extends Powerup {
+    constructor(phaser) {
+      super(phaser, 'puShield');
+    }
+
+    use() {
+      super.use();
+      this.phaser.ship.invincibility += Phaser.Math.Between(150, 300);
+    }
+  }
+
+  class HealthPowerup extends Powerup {
+    constructor(phaser) {
+      super(phaser, 'puHealth');
+    }
+
+    use() {
+      super.use();
+      this.phaser.ship.life += Phaser.Math.Between(15, 30);
+    }
+  }
+
 
   const SpaceFighter = {};
   SpaceFighter.Boot = new Phaser.Class({
@@ -518,7 +567,7 @@
       this.asteroids = [];
       this.baddies = [];
       this.bullets = [];
-      this.powerUps = [];
+      this.powerups = [];
       this.level = 0;
       this.score = 0;
       this.mothership = null;
@@ -540,6 +589,7 @@
       this.asteroidGroup = this.physics.add.group();
       this.badBulletGroup = this.physics.add.group();
       this.baddiesGroup = this.physics.add.group();
+      this.powerupGroup = this.physics.add.group();
 
       // Check if an asteroid hit you
       this.physics.add.collider(this.ship.sprite, this.asteroidGroup, (shipSprite, aSprite) => {
@@ -576,6 +626,11 @@
         bullet.life = 0;
         this.ship.damage(bullet.damageValue);
       });
+      // Check if you got any powerups
+      this.physics.add.collider(this.ship.sprite, this.powerupGroup, (sSprite, pSprite) => {
+        const powerup = this.powerups.find(p => p.sprite === pSprite);
+        powerup.use();
+      });
 
       this._generateStars();
     },
@@ -606,6 +661,7 @@
       this.asteroids = this.asteroids.filter(a => a.isAlive());
       this.bullets = this.bullets.filter(b => b.isAlive());
       this.baddies = this.baddies.filter(b => b.isAlive());
+      this.powerups = this.powerups.filter(p => !p.used);
 
       this.baddies.forEach(baddy => {
         if (baddy.coolDown === 0 && baddy.canSee(this.ship.sprite)) {
@@ -617,11 +673,30 @@
       // Update Score
       this.scoreText.text = `SCORE: ${this.score}`;
 
+      // Generate Randomly
+      this._generatePowerups();
       // Manage End of Level
       if (!this.asteroids.length && !this.baddies.length && !this.mothership){
         this.level += 1;
         this._generateAsteroids();
         this._generateBaddies();
+      }
+    },
+
+    _generatePowerups: function() {
+      const maxPowerups = Math.floor((this.level -1) / CONFIG.LEVEL_INTENSITY_MODIFIER);
+      if (this.powerups.length < maxPowerups && !Phaser.Math.Between(0, 1000)) {
+        const powerupTypes = [
+          MachineGunPowerup,
+          ShieldPowerup,
+          HealthPowerup,
+        ];
+        const typeIndex = Phaser.Math.Between(0, powerupTypes.length - 1);
+        const Powerup = powerupTypes[typeIndex];
+        const powerup = new Powerup(this);
+
+        this.powerups.push(powerup);
+        this.powerupGroup.add(powerup.sprite);
       }
     },
 
@@ -655,7 +730,7 @@
       this.sounds.laser.play();
     },
 
-    _generateStars() {
+    _generateStars: function() {
       const starNumber = Phaser.Math.Between(10, 50);
       for (let i = 0; i < starNumber; i++) {
         const x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
@@ -664,7 +739,7 @@
       }
     },
 
-    _gameOver() {
+    _gameOver: function () {
       console.log('Game over');
       const oldScore = +(localStorage.getItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`) || 0);
       if (this.score > oldScore) {
@@ -675,14 +750,6 @@
       localStorage.setItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`, newScore);
       return this.scene.restart(); // TODO: add a game over scene
     },
-
-
-    // controlStation: function(){
-    //   const stationSpeed = 0.6;
-    //   this.station.x += (Math.sin(this.station.rotation) * stationSpeed);
-    //   this.station.y += (-Math.cos(this.station.rotation) * stationSpeed);
-    //   this.wrapObject(this.station);
-    // },
   });
 
   window.onload = function(){
