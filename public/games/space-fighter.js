@@ -1,5 +1,6 @@
 (() => {
   const CONFIG = {
+    STORAGE_KEY_PREFIX: 'SPACEFIGHTER::',
     LEVEL_INTENSITY_MODIFIER: 3, //  increase number of asteroids and baddies every n level,
     ASTEROIDS_PER_DIFFICULTY: 5, // number of asteroids that starts with each difficulty,
     HEALTH_TIER_COLORS: [[0, 232, 0], [0, 186, 0], [0, 116, 0]],
@@ -7,6 +8,7 @@
     HEIGHT: 600,
     WIDTH: 900,
     HEALTHBAR_SIZE_MODIFIER: 3,
+    UI_PADDING: 5,
   };
 
   class FlyingSpaceObject {
@@ -151,6 +153,7 @@
       this.sprite.x += (Math.sin(this.sprite.rotation) * this.speed);
       this.sprite.y += (-Math.cos(this.sprite.rotation) * this.speed);
       this.invincibility = Math.max(0, this.invincibility - 1);
+      this.machineGun = Math.max(0, this.machineGun - 1);
 
       if (this.invincibility > 0) {
         this.sprite.setTint(Phaser.Math.FloatBetween(0x000000,0xFFFFFF));
@@ -209,7 +212,7 @@
     }
 
     initHealthbar() {
-      const padding = 5;
+      const padding = CONFIG.UI_PADDING;
       const height = 25;
       const width = this.life * CONFIG.HEALTHBAR_SIZE_MODIFIER;
       const x = padding + (width / 2);
@@ -250,6 +253,7 @@
       this.sprite.depth = 500;
       this.life = 30;
       this.damageValue = 10;
+      this.pointValue = 3;
 
       this.startAtEdge();
     }
@@ -303,6 +307,7 @@
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.life = 20;
       this.damageValue = 5;
+      this.pointValue = 2;
     }
 
     explode() {
@@ -338,6 +343,7 @@
       this.velocity = new Phaser.Math.Vector2(vecX, vecY);
       this.life = 10;
       this.damageValue = 1;
+      this.pointValue = 1;
     }
 
     explode() {
@@ -413,6 +419,15 @@
 
       this.pauseButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
+      // Draw Score Text
+      const scoreX = CONFIG.UI_PADDING * 2;
+      const scoreY = CONFIG.UI_PADDING * 2;
+      this.scoreText = this.add.text(scoreX, scoreY, 'SCORE: 0', {
+        fontFamily: 'Helvetica',
+        fontSize: '15px',
+      });
+      this.scoreText.depth = 3000;
+
       this.bulletGroup = this.physics.add.group();
       this.asteroidGroup = this.physics.add.group();
 
@@ -429,6 +444,7 @@
           const newAsteroids = asteroid.explode();
           newAsteroids.forEach(a => this.asteroidGroup.add(a.sprite));
           this.asteroids = this.asteroids.concat(newAsteroids);
+          this.score += asteroid.pointValue;
         }
       });
 
@@ -436,7 +452,7 @@
     },
     update: function(){
       if (!this.ship.isAlive()) {
-        console.log('Game over');
+        this._gameOver();
       }
 
       if (Phaser.Input.Keyboard.JustDown(this.pauseButton)) {
@@ -444,7 +460,10 @@
       }
       if (this.paused) { return; }
 
-      if (Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
+      if (
+        Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
+        (this.ship.machineGun > 0 && this.cursors.space.isDown)
+      ) {
         this._fireBullet();
       }
 
@@ -456,6 +475,9 @@
       // Clean up dead things
       this.asteroids = this.asteroids.filter(a => a.isAlive());
       this.bullets = this.bullets.filter(b => b.isAlive());
+
+      // Update Score
+      this.scoreText.text = `SCORE: ${this.score}`;
 
       // Manage End of Level
       if (!this.asteroids.length && !this.baddies.length && !this.mothership){
@@ -495,7 +517,16 @@
         const y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
         this.add.rectangle(x, y, 2, 1, 0xFFFFFF);
       }
-    }
+    },
+
+    _gameOver() {
+      console.log('Game over');
+      const oldScore = +localStorage.getItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`);
+      const newScore = Math.max(oldScore, this.score);
+      console.log('HIGH SCORE: ', newScore);
+      localStorage.setItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`, newScore);
+      return this.scene.restart(); // TODO: add a game over scene
+    },
 
 
     // controlStation: function(){
