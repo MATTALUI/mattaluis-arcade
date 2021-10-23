@@ -52,7 +52,7 @@
     }
 
     startAtEdge() {
-      const edge = Phaser.Math.Between(0,4);
+      const edge = Phaser.Math.Between(0,3);
 
       switch(edge) {
         case 0: // TOP
@@ -95,7 +95,7 @@
 
       if (!this.safe) {
         this.sprite.destroy();
-        this.sprite = phaser.physics.add.sprite(100, 100, 'badBullet').setScale(0.06);
+        this.sprite = this.phaser.physics.add.sprite(100, 100, 'badBullet').setScale(0.06);
       }
 
       this.sprite.x = ship.sprite.x;
@@ -132,6 +132,7 @@
       this.good = true;
       this.damageValue = 10;
       this.rotationSpeed = 0.08;
+      this.damageInvincibilityValue = 200;
       this.id = null; // ID is for multiplayer ability
 
       // this.phaser.sounds.shipEngine.setLoop(true);
@@ -205,9 +206,13 @@
     damage(damageValue) {
       if (this.invincibility === 0){
         this.life -= damageValue;
-        this.invincibility += 200;
+        this.invincibility += this.damageInvincibilityValue;
         this.phaser.sounds.damage.play();
         this.speed = 0;
+
+        if (!this.isAlive()) {
+          this.sprite.destroy();
+        }
       }
     }
 
@@ -231,7 +236,110 @@
       this.healthbar.width = Math.max(0, this.life * CONFIG.HEALTHBAR_SIZE_MODIFIER);
     }
 
-    canSeePoint(x, y) {
+    canSee(sprite) {
+      const angle = this.sprite.rotation;
+      const marginOfError = 35;
+      let canSee = false;
+      let onTrack = false;
+
+      try{
+        const deltaX = -Math.sin(angle);
+        const deltaY = Math.cos(angle);
+
+        const m = deltaY/deltaX;
+        const b = -(m * this.sprite.x) + this.sprite.y;
+
+        const expectedYValue = m * sprite.x + b;
+        const highEnough = expectedYValue >= sprite.y - marginOfError;
+        const lowEnough = expectedYValue <= sprite.y + marginOfError;
+        let onTrack = highEnough && lowEnough;
+        if (onTrack) {
+          const difference = sprite.x - this.sprite.x;
+          const rightAndRight = difference < 0 && this.sprite.rotation < 0;
+          const leftAndLeft = difference > 0 && this.sprite.rotation > 0;
+          canSee = leftAndLeft || rightAndRight;
+        }
+      } catch(e) {
+        console.error(e);
+      }
+
+      return canSee;
+    }
+  }
+
+  class EnemyShip extends Ship {
+    constructor(phaser){
+      const baddySizeCorrections = {
+        "1": 0.35,
+        "2": 0.19,
+        "3": 0.19,
+      };
+      super(phaser);
+      this.sprite.destroy();
+      this.baddyNumber = Phaser.Math.Between(1, 3);
+      this.sprite = phaser.physics.add
+        .sprite(CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, `baddy${this.baddyNumber}`)
+        .setScale(baddySizeCorrections[this.baddyNumber]);
+      this.sprite.rotation = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+
+      this.maxLife = 100;
+      this.maxSpeed = this.baddyNumber * 0.9;
+      this.good = false;
+      this.rotationSpeed = 0.02;
+      this.coolDown = 0;
+      this.damageInvincibilityValue = 20;
+      this.pointValue = 10;
+      this.startAtEdge();
+    }
+
+    update() {
+      this.seekPlayer();
+      this.thrust();
+      this.advance();
+      // this.updateHealthbar();
+      this.wrapSprite();
+      this.coolDown = Math.max(0, this.coolDown - 1);
+    }
+
+    seekPlayer() {
+      const ship = this.phaser.ship;
+      const angle = this.sprite.rotation;
+      // TODO: Just do arc measurements to figure out what to do here.
+      try {
+        // TODO: I don't think this is even mathematically right
+        const deltaX = -Math.sin(angle);
+        const deltaY = Math.cos(angle);
+
+        const m = deltaY/deltaX;
+        const b = -(m * this.sprite.x) + this.sprite.y;
+
+        const expectedYValue = m * ship.sprite.x + b;
+        const difference = ship.sprite.y - expectedYValue;
+        const facingLeft = this.sprite.rotation > 0;
+        if (!facingLeft){
+          if(difference > 0) {
+            this.turnLeft();
+          } else {
+            this.turnRight();
+          }
+        } else {
+          if(difference > 0) {
+            this.turnRight();
+          } else {
+            this.turnLeft();
+          }
+        }
+
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    initHealthbar() {
+
+    }
+
+    updateHealthbar () {
 
     }
   }
@@ -411,7 +519,7 @@
       this.baddies = [];
       this.bullets = [];
       this.powerUps = [];
-      this.level = 1;
+      this.level = 0;
       this.score = 0;
       this.mothership = null;
       this.paused = false;
@@ -430,11 +538,15 @@
 
       this.bulletGroup = this.physics.add.group();
       this.asteroidGroup = this.physics.add.group();
+      this.badBulletGroup = this.physics.add.group();
+      this.baddiesGroup = this.physics.add.group();
 
+      // Check if an asteroid hit you
       this.physics.add.collider(this.ship.sprite, this.asteroidGroup, (shipSprite, aSprite) => {
         const asteroid = this.asteroids.find(a => a.sprite === aSprite);
         this.ship.damage(asteroid.damageValue);
       });
+      // Check if you hit an asteroid
       this.physics.add.collider(this.bulletGroup, this.asteroidGroup, (bSprite, aSprite) => {
         const bullet = this.bullets.find(b => b.sprite === bSprite);
         const asteroid = this.asteroids.find(a => a.sprite === aSprite);
@@ -446,6 +558,23 @@
           this.asteroids = this.asteroids.concat(newAsteroids);
           this.score += asteroid.pointValue;
         }
+      });
+      // Check if you hit an enemy
+      this.physics.add.collider(this.baddiesGroup, this.bulletGroup, (sSprite, bSprite) => {
+        const baddy = this.baddies.find(b => b.sprite === sSprite);
+        const bullet = this.bullets.find(b => b.sprite === bSprite);
+
+        baddy.damage(bullet.damageValue);
+
+        if (!baddy.isAlive()) {
+          this.score += baddy.pointValue;
+        }
+      });
+      // Check if an enemy hit you
+      this.physics.add.collider(this.ship.sprite, this.badBulletGroup, (sSprite, bSprite) => {
+        const bullet = this.bullets.find(b => b.sprite === bSprite);
+        bullet.life = 0;
+        this.ship.damage(bullet.damageValue);
       });
 
       this._generateStars();
@@ -464,17 +593,26 @@
         Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
         (this.ship.machineGun > 0 && this.cursors.space.isDown)
       ) {
-        this._fireBullet();
+        this._fireBullet(this.ship);
       }
 
       // Update Entities
       this.ship.update();
+      this.baddies.forEach(b => b.update());
       this.bullets.forEach(b => b.update());
       this.asteroids.forEach(a => a.update());
 
       // Clean up dead things
       this.asteroids = this.asteroids.filter(a => a.isAlive());
       this.bullets = this.bullets.filter(b => b.isAlive());
+      this.baddies = this.baddies.filter(b => b.isAlive());
+
+      this.baddies.forEach(baddy => {
+        if (baddy.coolDown === 0 && baddy.canSee(this.ship.sprite)) {
+          this._fireBullet(baddy);
+          baddy.coolDown = 25;
+        }
+      });
 
       // Update Score
       this.scoreText.text = `SCORE: ${this.score}`;
@@ -500,12 +638,19 @@
     },
 
     _generateBaddies: function () {
+      const difficulty = Math.floor(this.level / CONFIG.LEVEL_INTENSITY_MODIFIER);
+      for (let i = 0; i < difficulty ; i++){
+        const baddy = new EnemyShip(this);
 
+        this.baddies.push(baddy);
+        this.baddiesGroup.add(baddy.sprite);
+      }
     },
 
-    _fireBullet: function () {
-      const bullet = new Bullet(this, this.ship);
-      this.bulletGroup.add(bullet.sprite);
+    _fireBullet: function (ship) {
+      const bullet = new Bullet(this, ship);
+      const group = bullet.safe ? this.bulletGroup : this.badBulletGroup;
+      group.add(bullet.sprite);
       this.bullets.push(bullet);
       this.sounds.laser.play();
     },
@@ -521,7 +666,10 @@
 
     _gameOver() {
       console.log('Game over');
-      const oldScore = +localStorage.getItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`);
+      const oldScore = +(localStorage.getItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`) || 0);
+      if (this.score > oldScore) {
+        console.log('New High Score!');
+      }
       const newScore = Math.max(oldScore, this.score);
       console.log('HIGH SCORE: ', newScore);
       localStorage.setItem(`${CONFIG.STORAGE_KEY_PREFIX}HIGH_SCORE`, newScore);
