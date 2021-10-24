@@ -4,7 +4,8 @@
     "author": "MATTALUI",
     "description": "Join the space force in the fight against aliens in this action-packed space shooter.",
     "date": "TBD",
-    "hasImage": false
+    "hasImage": true,
+    "image": "/thumbnails/space-fighter.png"
   },
   "test": {
     "name": "A Test Game",
