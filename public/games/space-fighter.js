@@ -11,6 +11,17 @@
     UI_PADDING: 5,
   };
 
+  const Utilities = {
+    generateStars: function() {
+      const starNumber = Phaser.Math.Between(10, 50);
+      for (let i = 0; i < starNumber; i++) {
+        const x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
+        const y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
+        this.add.rectangle(x, y, 2, 1, 0xFFFFFF);
+      }
+    },
+  };
+
   class FlyingSpaceObject {
     constructor(phaser){
       this.phaser = phaser;
@@ -538,6 +549,16 @@
       this.load.image('puHealth', '/assets/space-fighter/images/pu_health.png');
       this.load.image('puShield', '/assets/space-fighter/images/pu_shield.png');
 
+      /*
+      MAKE MORE BUTTONS HERE WITH THESE STYLES
+      https://www.imagefu.com/create/button#%7B%22content%22:%22%3Cdiv%3E%3Cb%3E%3Cspan+style=%5C%22color:+rgb(255,+255,+255);+font-family:+&quot;Ubuntu&quot;,+sans-serif;+font-size:+20px;%5C%22%3EMORE%3C/span%3E%3C/b%3E%3Cbr+/%3E%3C/div%3E%22,%22background%22:%7B%22orientation%22:0,%22stops%22:%5B%7B%22color%22:%22#000000ff%22,%22offset%22:0%7D,%7B%22color%22:%22#6fa8dcff%22,%22offset%22:100%7D%5D%7D,%22borders%22:%7B%22top%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22right%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22bottom%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22left%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D%7D,%22corners%22:%7B%22topLeft%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22topRight%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22bottomRight%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22bottomLeft%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D%7D,%22sizeOrPadding%22:%7B%22top%22:11,%22right%22:43,%22left%22:43,%22bottom%22:11%7D,%22shadows%22:%5B%7B%22type%22:0,%22horizontalOffset%22:3,%22verticalOffset%22:5,%22blur%22:11,%22color%22:%22#444444dd%22%7D%5D%7D
+      */
+      this.load.image('btnAbout', '/assets/space-fighter/images/buttons/btn-about.png');
+      this.load.image('btnHelp', '/assets/space-fighter/images/buttons/btn-help.png');
+      this.load.image('btnMore', '/assets/space-fighter/images/buttons/btn-more.png');
+      this.load.image('btnOptions', '/assets/space-fighter/images/buttons/btn-options.png');
+      this.load.image('btnPlay', '/assets/space-fighter/images/buttons/btn-play.png');
+
 
       this.load.audio('hit', ['/assets/space-fighter/sound/hit.wav']);
       this.load.audio('explode', ['/assets/space-fighter/sound/explode.wav']);
@@ -546,13 +567,47 @@
       this.load.audio('damage', ['/assets/space-fighter/sound/damage.wav']);
     },
     create: function (){
-      this.scene.start('Play');
+      this.scene.start('MainMenu');
+    }
+  });
+
+  SpaceFighter.MainMenu = new Phaser.Class({
+    Extends: Phaser.Scene,
+    initialize: function Play (){
+      Phaser.Scene.call(this, { key: 'MainMenu' });
+    },
+    create: function() {
+      this._generateStars();
+      this._generateMenu();
+    },
+    update: function() {
+    },
+
+    _generateStars: Utilities.generateStars,
+    _generateMenu: function () {
+      // Create background rectangle
+      const bgHeight = CONFIG.HEIGHT * (2/3);
+      const bgWidth = CONFIG.WIDTH * (2/3);
+      const bgX = CONFIG.WIDTH / 2;
+      const bgY = CONFIG.HEIGHT / 2;
+      this.menuBG = this.add.rectangle(bgX, bgY, bgWidth, bgHeight, 0xDDDDFF, 0xDDDDDD);
+      // Add options
+      let btnWidth, btnHeight, btnX, btnY;
+      btnWidth = 164;
+      btnHeight = 64;
+      btnX = bgX - (bgWidth / 2) + (btnWidth / 2) + CONFIG.UI_PADDING;
+      btnY = bgY - (bgHeight / 2) + (btnHeight / 2) + CONFIG.UI_PADDING;
+      console.log({ btnX, btnY })
+      this.btnPlay = this.physics.add.sprite(btnX, btnY, 'btnPlay').setInteractive({ cursor: 'pointer' });
+      this.btnPlay.on('pointerdown', () => {
+        this.scene.start('Play');
+      });
     }
   });
 
   SpaceFighter.Play = new Phaser.Class({
     Extends: Phaser.Scene,
-    initialize: function Play (){
+    initialize: function (){
       Phaser.Scene.call(this, { key: 'Play' });
     },
     create: function (){
@@ -730,14 +785,7 @@
       this.sounds.laser.play();
     },
 
-    _generateStars: function() {
-      const starNumber = Phaser.Math.Between(10, 50);
-      for (let i = 0; i < starNumber; i++) {
-        const x = Phaser.Math.FloatBetween(0, CONFIG.WIDTH);
-        const y = Phaser.Math.FloatBetween(0, CONFIG.HEIGHT);
-        this.add.rectangle(x, y, 2, 1, 0xFFFFFF);
-      }
-    },
+    _generateStars: Utilities.generateStars,
 
     _gameOver: function () {
       console.log('Game over');
@@ -757,7 +805,11 @@
       type: Phaser.AUTO,
       width: CONFIG.WIDTH,
       height: CONFIG.HEIGHT,
-      scene: [ SpaceFighter.Boot, SpaceFighter.Play ],
+      scene: [
+        SpaceFighter.Boot,
+        SpaceFighter.MainMenu,
+        SpaceFighter.Play,
+      ],
       autoCenter: true,
       parent: 'gameContainer',
       title: 'Space Fighter',
