@@ -1,5 +1,6 @@
 (() => {
   const CONFIG = {
+    TITLE: 'SPACE FIGHTER',
     STORAGE_KEY_PREFIX: 'SPACEFIGHTER::',
     LEVEL_INTENSITY_MODIFIER: 3, //  increase number of asteroids and baddies every n level,
     ASTEROIDS_PER_DIFFICULTY: 5, // number of asteroids that starts with each difficulty,
@@ -343,7 +344,7 @@
         }
 
       } catch(e) {
-        console.error(e);
+        // console.error(e);
       }
     }
 
@@ -549,10 +550,8 @@
       this.load.image('puHealth', '/assets/space-fighter/images/pu_health.png');
       this.load.image('puShield', '/assets/space-fighter/images/pu_shield.png');
 
-      /*
-      MAKE MORE BUTTONS HERE WITH THESE STYLES
-      https://www.imagefu.com/create/button#%7B%22content%22:%22%3Cdiv%3E%3Cb%3E%3Cspan+style=%5C%22color:+rgb(255,+255,+255);+font-family:+&quot;Ubuntu&quot;,+sans-serif;+font-size:+20px;%5C%22%3EMORE%3C/span%3E%3C/b%3E%3Cbr+/%3E%3C/div%3E%22,%22background%22:%7B%22orientation%22:0,%22stops%22:%5B%7B%22color%22:%22#000000ff%22,%22offset%22:0%7D,%7B%22color%22:%22#6fa8dcff%22,%22offset%22:100%7D%5D%7D,%22borders%22:%7B%22top%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22right%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22bottom%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D,%22left%22:%7B%22color%22:%22#ffffffff%22,%22width%22:1%7D%7D,%22corners%22:%7B%22topLeft%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22topRight%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22bottomRight%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D,%22bottomLeft%22:%7B%22horizontalRadius%22:6,%22verticalRadius%22:6%7D%7D,%22sizeOrPadding%22:%7B%22top%22:11,%22right%22:43,%22left%22:43,%22bottom%22:11%7D,%22shadows%22:%5B%7B%22type%22:0,%22horizontalOffset%22:3,%22verticalOffset%22:5,%22blur%22:11,%22color%22:%22#444444dd%22%7D%5D%7D
-      */
+      // MAKE MORE BUTTONS HERE WITH THESE STYLES
+      // https://tinyurl.com/2p9hhay4
       this.load.image('btnAbout', '/assets/space-fighter/images/buttons/btn-about.png');
       this.load.image('btnHelp', '/assets/space-fighter/images/buttons/btn-help.png');
       this.load.image('btnMore', '/assets/space-fighter/images/buttons/btn-more.png');
@@ -579,8 +578,16 @@
     create: function() {
       this._generateStars();
       this._generateMenu();
+      this.asteroids = [
+        ...new Array(2).fill().map(() => new AsteroidLarge(this)),
+        ...new Array(1).fill().map(() => new AsteroidMedium(this)),
+        ...new Array(1).fill().map(() => new AsteroidSmall(this)),
+      ];
+      this.baddies = [new EnemyShip(this)];
     },
     update: function() {
+      this.asteroids.forEach(a => a.update());
+      this.baddies.forEach(b => b.update());
     },
 
     _generateStars: Utilities.generateStars,
@@ -591,16 +598,37 @@
       const bgX = CONFIG.WIDTH / 2;
       const bgY = CONFIG.HEIGHT / 2;
       this.menuBG = this.add.rectangle(bgX, bgY, bgWidth, bgHeight, 0xDDDDFF, 0xDDDDDD);
-      // Add options
-      let btnWidth, btnHeight, btnX, btnY;
-      btnWidth = 164;
-      btnHeight = 64;
-      btnX = bgX - (bgWidth / 2) + (btnWidth / 2) + CONFIG.UI_PADDING;
-      btnY = bgY - (bgHeight / 2) + (btnHeight / 2) + CONFIG.UI_PADDING;
-      console.log({ btnX, btnY })
-      this.btnPlay = this.physics.add.sprite(btnX, btnY, 'btnPlay').setInteractive({ cursor: 'pointer' });
-      this.btnPlay.on('pointerdown', () => {
-        this.scene.start('Play');
+      this.menuBG.setDepth(1000);
+      // Add Title
+      this.scoreText = this.add.text(0, 0, CONFIG.TITLE, {
+        fontFamily: 'Helvetica',
+        fontSize: '35px',
+      });
+      // Add Menu Options
+      const btnHeight = 76;
+      const btnWidth = 214;
+      [
+        { sprite: 'btnPlay', action: () => this.scene.start('Play')},
+        // { sprite: 'btnHelp', action: console.log },
+        // { sprite: 'btnOptions', action: console.log },
+        // { sprite: 'btnAbout', action: console.log },
+        // { sprite: 'btnMore', action: console.log },
+      ].forEach((btn, index) => {
+        const btnX = bgX - (bgWidth / 2) + (btnWidth / 2) + CONFIG.UI_PADDING;
+        const btnY = (bgY - (bgHeight / 2) + (btnHeight / 2) + CONFIG.UI_PADDING) + (btnHeight * index);
+        this[btn.sprite] = this
+          .physics
+          .add
+          .sprite(btnX, btnY, btn.sprite)
+          .setInteractive({ cursor: 'pointer' });
+        this[btn.sprite].setDepth(1100);
+        this[btn.sprite].on('pointerdown', btn.action);
+        this[btn.sprite].on('pointerover', () => {
+          this[btn.sprite].setTint(0xBBBBBB);
+        });
+        this[btn.sprite].on('pointerout', () => {
+          this[btn.sprite].clearTint();
+        });
       });
     }
   });
