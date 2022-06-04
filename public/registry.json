@@ -7,6 +7,14 @@
     "hasImage": true,
     "image": "/thumbnails/space-fighter.png"
   },
+  "pball-wizard": {
+    "name": "P-Ball Wizard",
+    "author": "MATTALUI",
+    "description": "The wizard of P-Ball has come! Keep the ball in the air and complete missions to score points.",
+    "date": "TBD",
+    "hasImage": false,
+    "image": null
+  },
   "test": {
     "name": "A Test Game",
     "author": "MATTALUI",

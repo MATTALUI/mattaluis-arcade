@@ -4,6 +4,9 @@
     const template = Handlebars.compile(templateSource);
     document.querySelector('#games').innerHTML = '';
     for (let key in registry){
+      if (key.startsWith('__')){
+        continue;
+      }
       const game = registry[key];
       const html = template({ key, ...game });
       document.querySelector('#games').innerHTML += html;
