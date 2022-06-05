@@ -75,6 +75,7 @@
       });
 
       this.matter.add.mouseSpring({ length: 1, stiffness: 0.6 });
+      // TODO: paddles https://jsfiddle.net/es4dfvz0/
     }
   });
 
