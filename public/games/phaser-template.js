@@ -34,6 +34,10 @@
       autoCenter: true,
       parent: 'gameContainer',
       title: '[GAME NAME]',
+      fps: {
+        target: 30,
+        forceSetTimeOut: true
+      },
     };
     const game = new Phaser.Game(config);
   };
